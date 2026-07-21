@@ -1,0 +1,7 @@
+.env
+.codemie
+node_modules
+*.log
+skill
+snapshot_env.tar
+extracted_env_snapshot
