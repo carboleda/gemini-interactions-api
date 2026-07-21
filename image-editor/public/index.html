@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Angetic Image Editor</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-dot"></span>
+        <h1>Angetic <span>Image Editor</span> 🍌</h1>
+      </div>
+      <p class="subtitle">Edición de imágenes con Managed Agents &amp; Gemini</p>
+    </header>
+
+    <main class="layout">
+      <section class="card upload-card">
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden />
+          <div id="dropzoneEmpty" class="dropzone-empty">
+            <div class="upload-icon">⇧</div>
+            <p>Arrastra una imagen aquí</p>
+            <p class="hint">o haz clic para seleccionar (PNG, JPEG, WebP)</p>
+          </div>
+          <img id="thumbnail" class="dropzone-thumbnail" hidden alt="Imagen cargada" />
+        </div>
+
+        <div class="field">
+          <label for="prompt">Instrucción de edición</label>
+          <textarea id="prompt" rows="3" placeholder="Ej. Haz que el carro sea rojo"></textarea>
+        </div>
+
+        <div id="chips" class="chips" hidden></div>
+
+        <div class="controls-row">
+          <div class="field model-field">
+            <label for="modelSelect">Modelo</label>
+            <select id="modelSelect">
+              <option value="gemini-3.1-flash-image">Flash Image</option>
+              <option value="gemini-3.1-pro-image">Pro Image</option>
+            </select>
+          </div>
+
+          <button id="editButton" class="btn-primary" disabled>
+            <span class="btn-label">Editar imagen</span>
+            <span class="spinner" hidden></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="card result-card">
+        <div class="result-header">
+          <h2>Comparador</h2>
+          <a id="downloadButton" class="btn-secondary" hidden download="edited.jpg">Descargar</a>
+        </div>
+
+        <div id="compareContainer" class="compare-container" hidden>
+          <img id="beforeImage" class="compare-image" alt="Original" />
+          <div id="afterWrapper" class="compare-after-wrapper">
+            <img id="afterImage" class="compare-image" alt="Editada" />
+          </div>
+          <div id="compareHandle" class="compare-handle"></div>
+        </div>
+        <p id="resultPlaceholder" class="placeholder">La imagen editada aparecerá aquí.</p>
+      </section>
+
+      <section class="card history-card">
+        <div class="history-header">
+          <h2>Historial</h2>
+          <button id="resetAllButton" class="btn-secondary icon-only" type="button">🗑️</button>
+        </div>
+        <div id="historyList" class="history-list">
+          <!-- <p class="history-empty">Carga una imagen para empezar.</p> -->
+        </div>
+      </section>
+
+      <section class="card console-card">
+        <h2>Consola del Agente</h2>
+        <div id="console" class="console"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>
