@@ -2,17 +2,18 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 // NOTE: `base` asume que este sitio se publica como GitHub Pages de
-// *proyecto* en https://<usuario>.github.io/image-editor-codelab/.
+// *proyecto* en https://carboleda.github.io/gemini-interactions-api/
+// (el nombre del repositorio, no el del subdirectorio del proyecto Astro).
 // - Si el repositorio real tiene otro nombre, cambia `PROD_BASE` (y `SITE`)
 //   para que coincida.
 // - Si en cambio se publica como página raíz de usuario/organización
 //   (repo `<usuario>.github.io`), usa `PROD_BASE = "/"`.
 // En `astro dev` siempre se usa "/": Astro aplica `base` también en local, y
-// no tiene sentido navegar a http://localhost:4321/image-editor-codelab/ para
+// no tiene sentido navegar a http://localhost:4321/gemini-interactions-api/ para
 // probar cambios. `astro preview` sirve el `dist/` ya compilado, así que debe
 // usar el mismo base que `astro build` para que las rutas coincidan.
-const SITE = "https://TU-USUARIO.github.io";
-const PROD_BASE = "/image-editor-codelab";
+const SITE = "https://carboleda.github.io";
+const PROD_BASE = "/gemini-interactions-api";
 const isDev = process.argv.includes("dev");
 
 export default defineConfig({
