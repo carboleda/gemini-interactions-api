@@ -7,18 +7,7 @@ description: Qué es la Interactions API, qué es un Managed Agent y qué papel 
 
 Un editor de imágenes con IA: el usuario sube una foto, la aplicación genera automáticamente sugerencias de edición, y cada edición se ejecuta en un **Managed Agent** que corre un script de Python dentro de un **sandbox remoto en la nube de Google**. Ese script llama a Gemini "Nano Banana" para transformar la imagen y el resultado vuelve al navegador.
 
-```
-Navegador (SPA)
-   │  sube imagen / pide sugerencias / pide edición
-   ▼
-Servidor Express (sharp + @google/genai)
-   │  interactions.create(...)
-   ▼
-Managed Agent remoto ─── ejecuta edit_image.py en un sandbox
-   │
-   ▼
-Gemini Nano Banana (gemini-3.1-flash-image)
-```
+<img src="../images/architecture.png" alt="Arquitectura de la aplicación" width="800" />
 
 El servidor nunca procesa píxeles con Nano Banana directamente: solo orquesta la sesión, sube los archivos de entrada al sandbox, dispara el agente, y descarga el resultado cuando termina. Todo el trabajo de IA ocurre remotamente.
 
