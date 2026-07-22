@@ -1,0 +1,36 @@
+---
+title: Construye un Editor de Imágenes usando Interactions API y Managed Agents
+template: splash
+hero:
+  tagline: Aprende a orquestar un Managed Agent remoto que ejecuta código Python en un sandbox en la nube para editar imágenes con Gemini "Nano Banana".
+  actions:
+    - text: Empezar el codelab
+      link: 01-introduccion/
+      icon: right-arrow
+      variant: primary
+    - text: Descargar proyecto base
+      link: downloads/image-editor-starter.zip
+      icon: download
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## Qué vas a construir
+
+Un editor de imágenes con IA: el usuario sube una foto, la aplicación sugiere ediciones automáticamente, y cada edición se ejecuta en un **Managed Agent** que corre un script de Python dentro de un **sandbox remoto en la nube de Google**, el cual llama a Gemini para transformar la imagen.
+
+<CardGrid stagger>
+	<Card title="Interactions API" icon="rocket">
+		Una API con estado que administra sesiones y sandboxes remotos por ti, en lugar de llamadas request/response sin memoria.
+	</Card>
+	<Card title="Managed Agents" icon="setting">
+		Agentes que la plataforma orquesta y ejecuta de forma autónoma en un entorno aislado, con reglas de red configurables.
+	</Card>
+	<Card title="Nano Banana" icon="magnifier">
+		El modelo de imagen de Gemini (`gemini-3.1-flash-image`) que genera la edición real, invocado desde dentro del sandbox.
+	</Card>
+	<Card title="6 pasos guiados" icon="pencil">
+		Completa 6 bloques de código con las instrucciones exactas — sin adivinar, con el código y la explicación a la vista.
+	</Card>
+</CardGrid>

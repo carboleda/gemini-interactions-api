@@ -1,0 +1,18 @@
+{
+  "name": "image-editor-codelab",
+  "version": "1.0.0",
+  "description": "Codelab: Construye un Editor de Imagenes usando Interactions API y Managed Agents",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/build-downloads.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/build-downloads.mjs",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.1.3"
+  }
+}
