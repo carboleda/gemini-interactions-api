@@ -6,8 +6,8 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "first:start": "node --env-file ../.env first-steps/index.js",
-    "first:download": "node --env-file ../.env first-steps/download.js"
+    "first:start": "node --env-file ../.env index.js",
+    "first:download": "node --env-file ../.env download.js"
   },
   "keywords": [],
   "author": "",
