@@ -13,7 +13,9 @@ const SCRIPT_PATH = path.join(__dirname, "..", "scripts", "edit_image.py");
 const TMP_DIR = path.join(__dirname, "..", ".data", "tmp");
 
 const AGENT_NAME = "antigravity-preview-05-2026";
-const DOWNLOAD_TIMEOUT_MS = 300000;
+const POLL_INTERVAL_MS = 5000;
+const MAX_WAIT_MS = 300000;
+const MAX_GET_RETRIES = 3;
 // History of edited versions is kept in /history (outside /workspace) inside
 // the sandbox filesystem. downloadAndExtractOutput always fetches a snapshot
 // of the whole /workspace (the download API has no way to request a single
@@ -29,6 +31,10 @@ function escapeForDoubleQuotedShellArg(value) {
   return String(value)
     .replaceAll("\\", "\\\\")
     .replaceAll('"', String.raw`\"`);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // NOTE: the Interactions API rejects any request that combines
@@ -177,15 +183,19 @@ export async function editImage({
 
     const input = `Run this exact command in the workspace and wait for it to finish: ${command}`;
 
-    progressBus.emit(requestId, "Ejecutando Python script en sandbox...");
-    progressBus.emit(requestId, "Llamando a Nano Banana...");
-
     // TODO (Paso 4): declara aquí `createParams` con los campos que exige el
-    // Managed Agent (`agent`, `input`, `environment`, y
+    // Managed Agent (`agent`, `input`, `environment`, `background: true` para
+    // no bloquear la petición mientras el agente trabaja, y
     // `previous_interaction_id: session.lastInteractionId` únicamente cuando
-    // `isContinuation` es true) y llama a
-    // `await client.interactions.create(createParams, { timeout: DOWNLOAD_TIMEOUT_MS })`,
-    // guardando el resultado en `interaction`.
+    // `isContinuation` es true). Llama a
+    // `let interaction = await client.interactions.create(createParams)` y
+    // luego haz polling con `client.interactions.get(interaction.id)` hasta
+    // que `interaction.status` deje de ser `"queued"`/`"in_progress"`,
+    // emitiendo progreso (con `progressBus.emit`) en cada intento. Envuelve el
+    // `get(...)` en un try/catch: es una API preview y puede fallar de forma
+    // transitoria, así que reintenta hasta `MAX_GET_RETRIES` veces (con el
+    // mismo `POLL_INTERVAL_MS` como espera entre intentos) antes de relanzar
+    // el error.
     // Código completo y explicación -> Paso 4 del codelab.
     throw new Error(
       "Completa el Paso 4 del codelab en editImage() (lib/geminiAgent.js).",
@@ -215,18 +225,19 @@ export async function generateSuggestions({
   base64Image,
   mimeType = "image/jpeg",
 }) {
-  // TODO (Paso 1): llama a `client.models.generateContent({...})` pidiendo
-  // el modelo "gemini-3.5-flash", enviando la imagen (`inlineData` con
-  // `mimeType`/`base64Image`) junto con un prompt de texto que pida al menos
-  // 4 sugerencias de edición en español, y configurando salida estructurada
-  // (`responseMimeType: "application/json"` + `responseSchema` de un array
-  // de strings con `minItems: 4`). Guarda el resultado en `response`.
+  // TODO (Paso 1): llama a `client.interactions.create({...})` pidiendo el
+  // modelo "gemini-3.5-flash", con un `input` de dos partes — un
+  // { type: "text", text: "..." } con el prompt que pide al menos 4
+  // sugerencias en español, y un { type: "image", data: base64Image,
+  // mime_type: mimeType } con la imagen — y `response_format` para forzar
+  // salida JSON (array de al menos 4 strings). Guarda el resultado en
+  // `interaction`.
   // Código completo y explicación -> Paso 1 del codelab.
   throw new Error(
     "Completa el Paso 1 del codelab en generateSuggestions() (lib/geminiAgent.js).",
   );
 
-  const suggestions = JSON.parse(response.text);
+  const suggestions = JSON.parse(interaction.output_text);
   if (!Array.isArray(suggestions) || suggestions.length < 4) {
     throw new Error("El modelo no devolvió al menos 4 sugerencias válidas.");
   }

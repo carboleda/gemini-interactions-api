@@ -125,7 +125,8 @@ Genera una lista de al menos 4 sugerencias rápidas de prompts para editar basad
      `baseVersion` viene del cliente (o la última versión por defecto); debe validarse en rango `[0, nextVersion - 1]` antes de interpolarlo en la ruta, devolviendo un error claro si no lo está.
    - El texto enviado al agente como `input` es una instrucción en lenguaje natural que incluye el comando exacto: `Run this exact command in the workspace and wait for it to finish: <comando>`.
 
-4. **Ejecución y progreso en tiempo real**: el servidor emite fases al canal SSE (`GET /api/edit/events/:requestId`) a medida que avanza: *"Comprimiendo imagen..."*, *"Inicializando sandbox remoto..."* (o *"Reutilizando sandbox remoto..."* en continuaciones), *"Ejecutando Python script en sandbox..."*, *"Llamando a Nano Banana..."*, *"Descargando resultado del sandbox..."*. Al terminar (con éxito o error) se emite `done` y se cierra la conexión.
+4. **Ejecución en background y progreso en tiempo real**: la interacción con el Managed Agent se crea con `background: true` (no bloquea la petición) y el servidor hace *polling* de su estado con `client.interactions.get(...)` cada `POLL_INTERVAL_MS` (5s) hasta que deja de ser `"queued"`/`"in_progress"`, con un límite total de espera `MAX_WAIT_MS` (5 min). El servidor emite fases al canal SSE (`GET /api/edit/events/:requestId`) a medida que avanza: *"Comprimiendo imagen..."*, *"Inicializando sandbox remoto..."* (o *"Reutilizando sandbox remoto..."* en continuaciones), *"Lanzando ejecución en background..."*, y luego, en cada intento de polling, *"Agente trabajando en el sandbox (Nano Banana)... (Ns transcurridos)"* con el tiempo transcurrido, y finalmente *"Descargando resultado del sandbox..."*. Si el estado final no es `"completed"` (por ejemplo `"failed"` o `"cancelled"`), o si se supera `MAX_WAIT_MS`, se lanza un error explícito. Al terminar (con éxito o error) se emite `done` y se cierra la conexión.
+   - **Resiliencia del polling**: `client.interactions.get(...)` puede fallar de forma transitoria al ser una API preview (se observó un `403 permission_denied` puntual que no se repitió en ediciones posteriores). Cada llamada a `get(...)` está envuelta en un `try`/`catch` que cuenta errores *consecutivos*; un `get()` exitoso reinicia el contador a cero, y solo se relanza el error (abortando la edición) tras superar `MAX_GET_RETRIES` (3) fallos consecutivos. Mientras reintenta, emite `"Error temporal consultando el estado del agente, reintentando (N/MAX_GET_RETRIES)..."` por el canal SSE.
 
 5. **Descarga y extracción**:
    - Petición GET a la API de Archivos de Gemini para descargar el snapshot del entorno: `https://generativelanguage.googleapis.com/v1beta/files/environment-${envId}:download?alt=media`. A diferencia de las llamadas que hace el script *dentro* del sandbox, esta petición la hace el propio servidor Node desde fuera del sandbox, por lo que **no** se beneficia de la inyección automática de header de la allowlist — debe enviar explícitamente `x-goog-api-key` en sus headers.
@@ -134,8 +135,8 @@ Genera una lista de al menos 4 sugerencias rápidas de prompts para editar basad
 
 6. **Generación de Sugerencias de Prompts**:
    - Al recibir una imagen en `POST /api/suggest-prompts`, el backend usa `sharp` para redimensionarla a un tamaño reducido para análisis rápido (máx. 512px, ajuste `inside`, calidad 80).
-   - El backend invoca a `gemini-3.5-flash` vía `@google/genai` enviando la imagen y un prompt en español que solicita al menos 4 sugerencias concisas y realistas de edición basadas estrictamente en los elementos detectados (ej. cambiar el color de un objeto o prenda, agregar un accesorio, modificar el cielo o el fondo).
-   - Se solicita salida estructurada (JSON Schema, array de strings, mínimo 4 elementos) para un formato de respuesta consistente.
+   - El backend invoca al modelo `gemini-3.5-flash` a través de la **Interactions API** (`client.interactions.create({...})`, sin `agent` ni `environment` — una interacción puntual, sin estado), enviando un `input` con dos partes: un bloque de texto con el prompt en español que solicita al menos 4 sugerencias concisas y realistas de edición basadas estrictamente en los elementos detectados (ej. cambiar el color de un objeto o prenda, agregar un accesorio, modificar el cielo o el fondo), y un bloque de imagen (`{ type: "image", data, mime_type }`) con la imagen redimensionada.
+   - Se solicita salida estructurada vía `response_format` (JSON Schema, array de strings, mínimo 4 elementos) para un formato de respuesta consistente; el resultado se lee de `interaction.output_text`.
 
 ---
 
@@ -234,7 +235,7 @@ Para replicar este proyecto en cualquier entorno local:
 1. **Clonar/Configurar el proyecto base**:
    Asegurar un entorno Node.js v20+.
 2. **Variables de Entorno**:
-   Crear un archivo `.env` en la raíz del proyecto:
+   Si todavía no tienes una API key de Gemini, genera una gratis en [Google AI Studio](https://aistudio.google.com/api-keys). Crear un archivo `.env` en la raíz del proyecto:
    ```env
    GEMINI_API_KEY=tu_api_key_aqui
    PORT=3000

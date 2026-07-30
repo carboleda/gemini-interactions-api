@@ -13,7 +13,9 @@ const SCRIPT_PATH = path.join(__dirname, "..", "scripts", "edit_image.py");
 const TMP_DIR = path.join(__dirname, "..", ".data", "tmp");
 
 const AGENT_NAME = "antigravity-preview-05-2026";
-const DOWNLOAD_TIMEOUT_MS = 300000;
+const POLL_INTERVAL_MS = 5000;
+const MAX_WAIT_MS = 300000;
+const MAX_GET_RETRIES = 3;
 // History of edited versions is kept in /history (outside /workspace) inside
 // the sandbox filesystem. downloadAndExtractOutput always fetches a snapshot
 // of the whole /workspace (the download API has no way to request a single
@@ -29,6 +31,10 @@ function escapeForDoubleQuotedShellArg(value) {
   return String(value)
     .replaceAll("\\", "\\\\")
     .replaceAll('"', String.raw`\"`);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // NOTE: the Interactions API rejects any request that combines
@@ -189,21 +195,58 @@ export async function editImage({
 
     const input = `Run this exact command in the workspace and wait for it to finish: ${command}`;
 
-    progressBus.emit(requestId, "Ejecutando Python script en sandbox...");
-    progressBus.emit(requestId, "Llamando a Nano Banana...");
+    progressBus.emit(requestId, "Lanzando ejecución en background...");
 
     const createParams = {
       agent: AGENT_NAME,
       input,
       environment,
+      background: true,
       ...(isContinuation
         ? { previous_interaction_id: session.lastInteractionId }
         : {}),
     };
 
-    const interaction = await client.interactions.create(createParams, {
-      timeout: DOWNLOAD_TIMEOUT_MS,
-    });
+    let interaction = await client.interactions.create(createParams);
+    const startedAt = Date.now();
+    let consecutiveGetErrors = 0;
+
+    while (
+      interaction.status === "queued" ||
+      interaction.status === "in_progress"
+    ) {
+      if (Date.now() - startedAt > MAX_WAIT_MS) {
+        throw new Error(
+          "El agente no terminó a tiempo (timeout de 5 minutos).",
+        );
+      }
+      const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+      progressBus.emit(
+        requestId,
+        `Agente trabajando en el sandbox (Nano Banana)... (${elapsedSeconds}s transcurridos)`,
+      );
+      await sleep(POLL_INTERVAL_MS);
+
+      try {
+        interaction = await client.interactions.get(interaction.id);
+        consecutiveGetErrors = 0;
+      } catch (error) {
+        consecutiveGetErrors += 1;
+        if (consecutiveGetErrors > MAX_GET_RETRIES) {
+          throw error;
+        }
+        progressBus.emit(
+          requestId,
+          `Error temporal consultando el estado del agente, reintentando (${consecutiveGetErrors}/${MAX_GET_RETRIES})...`,
+        );
+      }
+    }
+
+    if (interaction.status !== "completed") {
+      throw new Error(
+        `El Managed Agent terminó con estado "${interaction.status}".`,
+      );
+    }
 
     agentEnvironment.save(sessionId, {
       environmentId: interaction.environment_id,
@@ -229,28 +272,29 @@ export async function generateSuggestions({
   base64Image,
   mimeType = "image/jpeg",
 }) {
-  const response = await client.models.generateContent({
+  const interaction = await client.interactions.create({
     model: "gemini-3.5-flash",
-    contents: [
+    input: [
       {
-        role: "user",
-        parts: [
-          { inlineData: { mimeType, data: base64Image } },
-          {
-            text:
-              "Analiza el contenido de esta imagen y genera al menos 4 sugerencias " +
-              "cortas y realistas de ediciones en español, basadas estrictamente en " +
-              "los elementos detectados (por ejemplo, cambiar el color de un objeto o " +
-              "prenda, agregar un accesorio, o modificar el cielo o el fondo). " +
-              'Ejemplos de formato: "Haz que el carro sea rojo", ' +
-              '"Haz que la camiseta de la persona sea azul".',
-          },
-        ],
+        type: "text",
+        text:
+          "Analiza el contenido de esta imagen y genera al menos 4 sugerencias " +
+          "cortas y realistas de ediciones en español, basadas estrictamente en " +
+          "los elementos detectados (por ejemplo, cambiar el color de un objeto o " +
+          "prenda, agregar un accesorio, o modificar el cielo o el fondo). " +
+          'Ejemplos de formato: "Haz que el carro sea rojo", ' +
+          '"Haz que la camiseta de la persona sea azul".',
+      },
+      {
+        type: "image",
+        data: base64Image,
+        mime_type: mimeType,
       },
     ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
+    response_format: {
+      type: "text",
+      mime_type: "application/json",
+      schema: {
         type: "array",
         items: { type: "string" },
         minItems: 4,
@@ -258,7 +302,7 @@ export async function generateSuggestions({
     },
   });
 
-  const suggestions = JSON.parse(response.text);
+  const suggestions = JSON.parse(interaction.output_text);
   if (!Array.isArray(suggestions) || suggestions.length < 4) {
     throw new Error("El modelo no devolvió al menos 4 sugerencias válidas.");
   }

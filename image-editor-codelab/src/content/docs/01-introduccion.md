@@ -54,7 +54,7 @@ Al completar este codelab sabrás:
 ## Prerrequisitos
 
 - Node.js 20 o superior.
-- Una API key de Gemini (desde [Google AI Studio](https://aistudio.google.com/)).
+- Una API key de Gemini (genera una gratis en [Google AI Studio](https://aistudio.google.com/api-keys)).
 - Conocimientos básicos de JavaScript/Express asíncrono. No necesitas saber Python de antemano — el script que completarás es corto y se explica línea por línea.
 
 Cuando estés listo, continúa a [Configuración del entorno](../02-configuracion/).

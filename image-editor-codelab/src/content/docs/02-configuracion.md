@@ -14,6 +14,8 @@ cd image-editor-starter
 
 ## 2. Configura tu API key
 
+Si todavía no tienes una API key de Gemini, genera una gratis en [Google AI Studio](https://aistudio.google.com/api-keys): inicia sesión con tu cuenta de Google, pulsa **"Create API key"** y copia el valor generado.
+
 Copia el archivo de ejemplo y agrega tu API key de Gemini:
 
 ```bash
