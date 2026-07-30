@@ -67,7 +67,7 @@ Más abajo en la misma función, después de que se construye `command` y `input
     );
 ```
 
-Nota que ya no verás aquí los `progressBus.emit("Ejecutando Python script en sandbox...")` / `"Llamando a Nano Banana..."` de versiones anteriores del codelab: ese aviso inicial ahora forma parte de este mismo bloque, seguido de los avisos periódicos del polling. Reemplaza el `throw` por:
+No solo reemplaza este bloque con la implementación completa de background execution y polling, sino que también agrega mensajes de progreso al usuario en la consola del navegador, para que vea que el agente está trabajando en el sandbox (Nano Banana) en vez de quedarse en silencio durante varios minutos. Reemplaza el `throw` por:
 
 ```js
     progressBus.emit(requestId, "Lanzando ejecución en background...");
