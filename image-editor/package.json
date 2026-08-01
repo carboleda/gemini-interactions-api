@@ -10,11 +10,12 @@
     "manage:agent": "node --env-file ../.env scripts/manage-agent.js",
     "setup:agent": "node --env-file ../.env scripts/manage-agent.js --create",
     "list:agents": "node --env-file ../.env scripts/manage-agent.js --list",
-    "delete:agent": "node --env-file ../.env scripts/manage-agent.js --delete"
+    "delete:agent": "node --env-file ../.env scripts/manage-agent.js --delete",
+    "get:interaction": "node --env-file ../.env scripts/manage-agent.js --interaction"
   },
   "license": "ISC",
   "dependencies": {
-    "@google/genai": "^2.13.0",
+    "@google/genai": "^2.15.0",
     "express": "^4.19.2",
     "multer": "^2.0.1",
     "sharp": "^0.33.5"

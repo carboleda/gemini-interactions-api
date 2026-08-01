@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { GoogleGenAI } from "@google/genai";
 
 import { AGENT_ID, BASE_AGENT } from "../lib/agentConfig.js";
@@ -13,16 +14,19 @@ const client = new GoogleGenAI({});
 
 const SYSTEM_INSTRUCTION =
   "Eres el agente que ejecuta ediciones de imagenes para la app image-editor. " +
-  "En cada interaccion recibiras un comando de shell exacto: ejecutalo tal cual en " +
-  "/workspace, espera a que termine por completo, y no agregues pasos, archivos ni " +
-  "comandos adicionales que no se te hayan pedido explicitamente.";
+  "En cada interaccion recibiras un comando de shell exacto: ejecutalo en /workspace " +
+  "y espera a que termine por completo. Si falla por una dependencia faltante " +
+  "(por ejemplo ModuleNotFoundError), instala esa dependencia y reintenta el comando " +
+  "original antes de responder. Fuera de resolver ese tipo de fallos, no agregues " +
+  "pasos, archivos ni comandos que no se te hayan pedido explicitamente.";
 
 const USAGE = `Uso: node scripts/manage-agent.js <comando>
 
 Comandos:
-  -c, --create   Crea el agente "${AGENT_ID}" (no hace nada si ya existe).
-  -l, --list     Lista los agentes registrados.
-  -d, --delete   Elimina el agente "${AGENT_ID}".
+  -c, --create             Crea el agente "${AGENT_ID}" (no hace nada si ya existe).
+  -l, --list               Lista los agentes registrados.
+  -d, --delete             Elimina el agente "${AGENT_ID}".
+  -i, --interaction <id>   Muestra el detalle de una interaccion por su id.
 `;
 
 // Bundles the static edit_image.py script and the egress allowlist into the
@@ -81,11 +85,7 @@ async function listAgents() {
     return;
   }
 
-  for (const agent of agents) {
-    console.log(
-      `${agent.id}\tbase_agent=${agent.base_agent ?? "-"}\t${agent.description ?? ""}`,
-    );
-  }
+  console.table(agents, ["id", "base_agent", "description"]);
 }
 
 async function deleteAgent() {
@@ -93,32 +93,46 @@ async function deleteAgent() {
   console.log(`Agente "${AGENT_ID}" eliminado.`);
 }
 
-function parseCommand(argv) {
-  const flags = new Set(argv);
-  const has = (...names) => names.some((name) => flags.has(name));
+async function getInteraction(interactionId) {
+  const interaction = await client.interactions.get(interactionId);
+  console.log(JSON.stringify(interaction, null, 2));
+}
 
-  if (has("-c", "--create")) return "create";
-  if (has("-l", "--list")) return "list";
-  if (has("-d", "--delete")) return "delete";
+const OPTIONS = {
+  create: { type: "boolean", short: "c" },
+  list: { type: "boolean", short: "l" },
+  delete: { type: "boolean", short: "d" },
+  interaction: { type: "string", short: "i" },
+};
+
+function parseCommand(argv) {
+  const { values } = parseArgs({ args: argv, options: OPTIONS, strict: true });
+
+  if (values.create) return { command: "create" };
+  if (values.list) return { command: "list" };
+  if (values.delete) return { command: "delete" };
+  if (values.interaction) {
+    return { command: "interaction", arg: values.interaction };
+  }
   return null;
 }
 
 const ACTIONS = {
-  create: createAgent,
-  list: listAgents,
-  delete: deleteAgent,
+  create: () => createAgent(),
+  list: () => listAgents(),
+  delete: () => deleteAgent(),
+  interaction: (interactionId) => getInteraction(interactionId),
 };
 
-const command = parseCommand(process.argv.slice(2));
-
-if (!command) {
-  console.error(USAGE);
-  process.exitCode = 1;
-} else {
-  try {
-    await ACTIONS[command]();
-  } catch (error) {
-    console.error(`Error ejecutando "${command}":`, error);
+try {
+  const parsed = parseCommand(process.argv.slice(2));
+  if (!parsed) {
+    console.error(USAGE);
     process.exitCode = 1;
+  } else {
+    await ACTIONS[parsed.command](parsed.arg);
   }
+} catch (error) {
+  console.error(error.message ?? error);
+  process.exitCode = 1;
 }
