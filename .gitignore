@@ -5,3 +5,4 @@ node_modules
 skill
 snapshot_env.tar
 extracted_env_snapshot
+codemie-analytics-*.json
